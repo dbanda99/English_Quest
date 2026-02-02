@@ -126,23 +126,33 @@
   }
 
   async function loadLibrary() {
-    // Prefer AdminLib helpers if available (for consistency),
-    // but DO NOT require them (so login never goes blank).
+    // IMPORTANT:
+    // Students should primarily load the *published* library from the repo (data/library.json),
+    // so they see the same quizzes/exams on any computer.
+    // Admin drafts are stored in localStorage, but those are device-specific and can be stale.
+    // We only fall back to localStorage if the published file cannot be loaded.
+
     try {
-      if (AdminLib && typeof AdminLib.loadLocalLibrary === "function") {
-        const local = AdminLib.loadLocalLibrary();
-        if (local) return AdminLib.ensureLibraryShape(local);
-        const def = await AdminLib.loadDefaultLibrary();
+      const def = await loadDefaultLibraryFallback();
+      // If AdminLib exists, prefer its shape normalization (keeps behavior consistent).
+      if (AdminLib && typeof AdminLib.ensureLibraryShape === "function") {
         return AdminLib.ensureLibraryShape(def);
       }
+      return ensureLibraryShapeFallback(def);
     } catch (e) {
-      console.warn("AdminLib library helpers failed, using fallback.", e);
+      console.warn("Published library.json failed to load, falling back to local draft.", e);
     }
 
     const local = loadLocalLibraryFallback();
-    if (local) return ensureLibraryShapeFallback(local);
-    const def = await loadDefaultLibraryFallback();
-    return ensureLibraryShapeFallback(def);
+    if (local) {
+      if (AdminLib && typeof AdminLib.ensureLibraryShape === "function") {
+        return AdminLib.ensureLibraryShape(local);
+      }
+      return ensureLibraryShapeFallback(local);
+    }
+
+    // Last resort: empty library.
+    return { appName: "English Quest", version: 2, lessons: [] };
   }
 
 
@@ -259,7 +269,10 @@
       hint.textContent = "";
       hint.className = "small";
       updateTopbar();
+      // If the user is already on #/, hashchange may not fire.
+      // Force a route refresh so the dashboard renders immediately.
       location.hash = "#/";
+      route();
     });
   }
 
