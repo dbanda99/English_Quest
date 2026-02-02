@@ -1,12 +1,18 @@
 {
   "version": 1,
-  "generatedAt": "2026-02-02T01:32:58.166Z",
+  "generatedAt": "2026-02-02T01:48:48.372Z",
   "users": [
     {
       "id": "u_d41fbe17_19c1bfaeef2",
       "name": "Fernanda Ochoa",
       "username": "f.banda",
       "passHash": "0518106a24b0cec7dddb1425a6eb06fe3007371daecddd27775f3e16dc38aa74"
+    },
+    {
+      "id": "u_0860e839_19c1c09adda",
+      "name": "David Banda",
+      "username": "d.banda",
+      "passHash": "cf80cd8aed482d5d1527d7dc72fceff84e6326592848447d2dc0b0e87dfc9a90"
     }
   ]
 }
