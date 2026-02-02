@@ -1,22 +1,31 @@
 /* English Quest — admin.js
    Admin UI (requires admin password via EnglishQuestAuth.requireAdmin()):
    - Lessons/exams editor (dynamic)
-   - Local student users creation
-   - Gradebook (view attempts)
+   - Student users creation (local draft) + export users.json for repo
+   - Gradebook (view attempts) — attempts are localStorage (device-only)
 */
 (() => {
   const STORAGE_KEY = "englishQuestLibrary_v2";
   const DEFAULT_URL = "data/library.json";
   const Auth = window.EnglishQuestAuth;
 
-  function uid(prefix="id") {
-    return prefix + "_" + Math.random().toString(16).slice(2, 10) + "_" + Date.now().toString(16).slice(2);
+  function uid(prefix = "id") {
+    return (
+      prefix +
+      "_" +
+      Math.random().toString(16).slice(2, 10) +
+      "_" +
+      Date.now().toString(16)
+    );
   }
 
-  function toast(msg, kind="info"){ Auth.toast(msg, kind); }
+  function toast(msg, kind = "info") {
+    if (Auth && typeof Auth.toast === "function") Auth.toast(msg, kind);
+    else console.log(`[${kind}] ${msg}`);
+  }
 
   async function loadDefaultLibrary() {
-    const res = await fetch(DEFAULT_URL, { cache:"no-store" });
+    const res = await fetch(DEFAULT_URL, { cache: "no-store" });
     if (!res.ok) throw new Error("Failed to load library.json");
     return await res.json();
   }
@@ -26,7 +35,9 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return null;
       return JSON.parse(raw);
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
 
   function saveLocalLibrary(lib) {
@@ -37,7 +48,7 @@
     localStorage.removeItem(STORAGE_KEY);
   }
 
-  function downloadText(filename, content, mime="application/json") {
+  function downloadText(filename, content, mime = "application/json") {
     const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -50,44 +61,51 @@
   }
 
   function ensureLibraryShape(lib) {
-    if (!lib || typeof lib !== "object") lib = { appName:"English Quest", version:2, lessons:[] };
-    if (!Array.isArray(lib.lessons)) lib.lessons = [];
-    lib.appName = lib.appName || "English Quest";
-    lib.version = Number.isFinite(lib.version) ? lib.version : 2;
+    const out = lib && typeof lib === "object" ? lib : {};
+    if (!Array.isArray(out.lessons)) out.lessons = [];
+    out.appName = out.appName || "English Quest";
+    out.version = Number.isFinite(out.version) ? out.version : 2;
 
-    lib.lessons.forEach(lsn => {
+    out.lessons.forEach((lsn, idx) => {
+      if (!lsn || typeof lsn !== "object") lsn = out.lessons[idx] = {};
       lsn.id = lsn.id || uid("lesson");
-      lsn.title = lsn.title || "Untitled";
+      lsn.title = lsn.title || `Lesson ${idx + 1}`;
       lsn.description = lsn.description || "";
-      lsn.kind = (lsn.kind || "quiz").toLowerCase();
-      if (!["homework","quiz","exam"].includes(lsn.kind)) lsn.kind = "quiz";
+      lsn.kind = String(lsn.kind || "quiz").toLowerCase();
+      if (!["homework", "quiz", "exam"].includes(lsn.kind)) lsn.kind = "quiz";
 
       if (!lsn.takePolicy || typeof lsn.takePolicy !== "object") {
         lsn.takePolicy = { mode: "unlimited", limit: 0 };
       }
-      lsn.takePolicy.mode = (lsn.takePolicy.mode || "unlimited");
-      if (!["unlimited","one_time","limit"].includes(lsn.takePolicy.mode)) lsn.takePolicy.mode = "unlimited";
+      lsn.takePolicy.mode = String(lsn.takePolicy.mode || "unlimited");
+      if (!["unlimited", "one_time", "limit"].includes(lsn.takePolicy.mode)) {
+        lsn.takePolicy.mode = "unlimited";
+      }
       lsn.takePolicy.limit = parseInt(lsn.takePolicy.limit || 0, 10) || 0;
 
       if (!Array.isArray(lsn.questions)) lsn.questions = [];
-      lsn.questions.forEach(q => {
+      lsn.questions.forEach((q, qi) => {
+        if (!q || typeof q !== "object") q = lsn.questions[qi] = {};
         q.id = q.id || uid("q");
         q.type = q.type || "single";
         q.prompt = q.prompt || "";
+        if ((q.type === "single" || q.type === "multi") && !Array.isArray(q.options)) {
+          q.options = ["A", "B", "C", "D"];
+        }
       });
     });
 
-    return lib;
+    return out;
   }
 
   function normalizeOptionLines(text) {
     return String(text || "")
       .split(/\r?\n/)
-      .map(s => s.trim())
+      .map((s) => s.trim())
       .filter(Boolean);
   }
 
-  function buildQuestionEditor(q) {
+  function buildQuestionEditor(q, onSave, onDelete) {
     const wrap = document.createElement("div");
     wrap.className = "card panel";
     wrap.innerHTML = `
@@ -174,16 +192,18 @@
 
     function renderAnswerControls() {
       const type = elType.value;
-      blockOptions.style.display = (type === "single" || type === "multi") ? "block" : "none";
-      blockSingle.style.display = (type === "single") ? "block" : "none";
-      blockMulti.style.display = (type === "multi") ? "block" : "none";
-      blockExact.style.display = (type === "exact") ? "block" : "none";
-      blocksContains.forEach(b => b.style.display = (type === "contains") ? "block" : "none");
+
+      blockOptions.style.display = type === "single" || type === "multi" ? "block" : "none";
+      blockSingle.style.display = type === "single" ? "block" : "none";
+      blockMulti.style.display = type === "multi" ? "block" : "none";
+      blockExact.style.display = type === "exact" ? "block" : "none";
+      blocksContains.forEach((b) => (b.style.display = type === "contains" ? "block" : "none"));
 
       const opts = normalizeOptionLines(elOptionsText.value);
 
+      // Single
       elAnswerSingle.innerHTML = "";
-      opts.forEach(o => {
+      opts.forEach((o) => {
         const op = document.createElement("option");
         op.value = o;
         op.textContent = o;
@@ -194,9 +214,10 @@
         else elAnswerSingle.value = opts[0] || "";
       }
 
+      // Multi
       elAnswerMulti.innerHTML = "";
       const answerArr = Array.isArray(q.answer) ? q.answer : [];
-      opts.forEach((o, i) => {
+      opts.forEach((o) => {
         const id = uid("chk");
         const row = document.createElement("label");
         row.className = "opt";
@@ -207,92 +228,97 @@
         elAnswerMulti.appendChild(row);
       });
 
+      // Exact / Contains
       if (type === "exact") elAnswerExact.value = q.answer || "";
       if (type === "contains") {
-        elKeywords.value = (q.keywords || []).join(", ");
-        elMinWords.value = (q.minWords ?? "") === 0 ? "0" : (q.minWords ?? "");
+        elKeywords.value = Array.isArray(q.keywords) ? q.keywords.join(", ") : "";
+        elMinWords.value = Number.isFinite(q.minWords) ? String(q.minWords) : (q.minWords ? String(q.minWords) : "");
+      }
+    }
+
+    function commitTypeDefaults(type) {
+      q.type = type;
+
+      if (type === "single") {
+        q.options = normalizeOptionLines(elOptionsText.value);
+        q.answer = q.options[0] || "";
+        delete q.keywords;
+        delete q.minWords;
+      } else if (type === "multi") {
+        q.options = normalizeOptionLines(elOptionsText.value);
+        q.answer = Array.isArray(q.answer) ? q.answer : [];
+        delete q.keywords;
+        delete q.minWords;
+      } else if (type === "exact") {
+        delete q.options;
+        q.answer = elAnswerExact.value || "";
+        delete q.keywords;
+        delete q.minWords;
+      } else if (type === "contains") {
+        delete q.options;
+        delete q.answer;
+        q.keywords = normalizeOptionLines((elKeywords.value || "").replace(/\s*,\s*/g, "\n"));
+        q.minWords = parseInt(elMinWords.value || "0", 10) || 0;
       }
     }
 
     renderAnswerControls();
 
     elType.addEventListener("change", () => {
-      q.type = elType.value;
-
-      if (q.type === "single") {
-        q.options = normalizeOptionLines(elOptionsText.value);
-        q.answer = q.options[0] || "";
-        delete q.keywords; delete q.minWords;
-      }
-      if (q.type === "multi") {
-        q.options = normalizeOptionLines(elOptionsText.value);
-        q.answer = Array.isArray(q.answer) ? q.answer : [];
-        delete q.keywords; delete q.minWords;
-      }
-      if (q.type === "exact") {
-        delete q.options;
-        q.answer = elAnswerExact.value || "";
-        delete q.keywords; delete q.minWords;
-      }
-      if (q.type === "contains") {
-        delete q.options; delete q.answer;
-        q.keywords = normalizeOptionLines((elKeywords.value||"").replace(/\s*,\s*/g,"\n"));
-        q.minWords = parseInt(elMinWords.value||"0",10) || 0;
-      }
-
+      commitTypeDefaults(elType.value);
       renderAnswerControls();
-      window.EnglishQuestAdmin?.requestSave?.();
+      onSave(true);
     });
 
     elPrompt.addEventListener("input", () => {
       q.prompt = elPrompt.value;
-      window.EnglishQuestAdmin?.requestSave?.(false);
+      onSave(false);
     });
 
     elOptionsText.addEventListener("input", () => {
       q.options = normalizeOptionLines(elOptionsText.value);
       if (q.type === "single") {
         const a = elAnswerSingle.value;
-        q.answer = q.options.includes(a) ? a : (q.options[0] || "");
+        q.answer = q.options.includes(a) ? a : q.options[0] || "";
       }
       if (q.type === "multi") {
         const prev = new Set(Array.isArray(q.answer) ? q.answer : []);
-        q.answer = q.options.filter(o => prev.has(o));
+        q.answer = q.options.filter((o) => prev.has(o));
       }
       renderAnswerControls();
-      window.EnglishQuestAdmin?.requestSave?.(false);
+      onSave(false);
     });
 
     elAnswerSingle.addEventListener("change", () => {
       q.answer = elAnswerSingle.value;
-      window.EnglishQuestAdmin?.requestSave?.();
+      onSave(true);
     });
 
     elAnswerMulti.addEventListener("change", () => {
       const chosen = [];
       [...elAnswerMulti.querySelectorAll("input[type=checkbox]")].forEach((chk, idx) => {
-        if (chk.checked) chosen.push(q.options[idx]);
+        if (chk.checked) chosen.push((q.options || [])[idx]);
       });
       q.answer = chosen.filter(Boolean);
-      window.EnglishQuestAdmin?.requestSave?.();
+      onSave(true);
     });
 
     elAnswerExact.addEventListener("input", () => {
       q.answer = elAnswerExact.value;
-      window.EnglishQuestAdmin?.requestSave?.(false);
+      onSave(false);
     });
 
     function updateContains() {
-      q.keywords = normalizeOptionLines((elKeywords.value||"").replace(/\s*,\s*/g,"\n"));
-      q.minWords = parseInt(elMinWords.value||"0",10) || 0;
-      window.EnglishQuestAdmin?.requestSave?.(false);
+      q.keywords = normalizeOptionLines((elKeywords.value || "").replace(/\s*,\s*/g, "\n"));
+      q.minWords = parseInt(elMinWords.value || "0", 10) || 0;
+      onSave(false);
     }
     elKeywords.addEventListener("input", updateContains);
     elMinWords.addEventListener("input", updateContains);
 
     wrap.querySelector('[data-action="delete"]').addEventListener("click", () => {
       if (!confirm("Delete this question?")) return;
-      window.EnglishQuestAdmin?.deleteActiveQuestion?.();
+      onDelete();
     });
 
     return wrap;
@@ -300,37 +326,77 @@
 
   const Admin = {
     lib: null,
+    tab: "lessons",
     selectedLessonId: null,
     selectedQuestionId: null,
-    tab: "lessons",
     _saveTimer: null,
+    _initPromise: null,
 
-    async init() {
-      const local = loadLocalLibrary();
-      if (local) Admin.lib = ensureLibraryShape(local);
-      else Admin.lib = ensureLibraryShape(await loadDefaultLibrary());
-      if (!Admin.selectedLessonId && Admin.lib.lessons[0]) Admin.selectedLessonId = Admin.lib.lessons[0].id;
-      return Admin.lib;
+    async init(force = false) {
+      if (Admin._initPromise && !force) return Admin._initPromise;
+
+      Admin._initPromise = (async () => {
+        const local = loadLocalLibrary();
+        if (local) Admin.lib = ensureLibraryShape(local);
+        else Admin.lib = ensureLibraryShape(await loadDefaultLibrary());
+
+        if (!Admin.selectedLessonId && Admin.lib.lessons[0]) {
+          Admin.selectedLessonId = Admin.lib.lessons[0].id;
+        }
+        return Admin.lib;
+      })();
+
+      return Admin._initPromise;
     },
 
-    requestSave(showToast=true) {
+    requestSave(showToast = true) {
       clearTimeout(Admin._saveTimer);
       Admin._saveTimer = setTimeout(() => {
-        saveLocalLibrary(Admin.lib);
-        if (showToast) toast("Saved (local)", "good");
+        try {
+          saveLocalLibrary(Admin.lib);
+          if (showToast) toast("Saved (local)", "good");
+        } catch (e) {
+          console.error(e);
+          toast("Save failed (localStorage)", "bad");
+        }
       }, 80);
     },
 
     resetAllLocal() {
       resetLocalLibrary();
-      localStorage.removeItem(Auth.USERS_KEY);
-      localStorage.removeItem(Auth.ATTEMPTS_KEY);
-      Auth.clearAdminSession();
+      if (Auth) {
+        localStorage.removeItem(Auth.USERS_KEY);
+        localStorage.removeItem(Auth.ATTEMPTS_KEY);
+        Auth.clearAdminSession?.();
+      }
       toast("Local data cleared. Reloading…", "info");
-      setTimeout(() => location.reload(), 450);
+      setTimeout(() => location.reload(), 350);
     },
 
     render(container) {
+      // Ensure library is loaded before drawing UI
+      if (!Admin.lib) {
+        container.innerHTML = `
+          <div class="card fade-in">
+            <h2 style="margin:0 0 8px;">Loading Admin…</h2>
+            <p class="muted" style="margin:0;">Preparing library & users.</p>
+          </div>
+        `;
+        Admin.init()
+          .then(() => Admin.render(container))
+          .catch((e) => {
+            console.error(e);
+            container.innerHTML = `
+              <div class="card fade-in">
+                <h2 style="margin:0 0 8px;">Admin failed to initialize</h2>
+                <p class="muted" style="margin:0 0 12px;">${String(e?.message || e)}</p>
+                <a class="btn btn-primary" href="#/">Back to Dashboard</a>
+              </div>
+            `;
+          });
+        return;
+      }
+
       container.innerHTML = "";
 
       const wrap = document.createElement("div");
@@ -343,13 +409,12 @@
         <p class="small">Protected by Admin Password (GitHub Environment secret).</p>
 
         <div class="row" style="margin-top:8px;">
-          <button class="btn ${Admin.tab==="lessons"?"btn-primary":""}" type="button" data-tab="lessons">Lessons</button>
-          <button class="btn ${Admin.tab==="users"?"btn-primary":""}" type="button" data-tab="users">Users</button>
-          <button class="btn ${Admin.tab==="gradebook"?"btn-primary":""}" type="button" data-tab="gradebook">Gradebook</button>
+          <button class="btn ${Admin.tab === "lessons" ? "btn-primary" : ""}" type="button" data-tab="lessons">Lessons</button>
+          <button class="btn ${Admin.tab === "users" ? "btn-primary" : ""}" type="button" data-tab="users">Users</button>
+          <button class="btn ${Admin.tab === "gradebook" ? "btn-primary" : ""}" type="button" data-tab="gradebook">Gradebook</button>
         </div>
 
         <div class="hr"></div>
-
         <div id="leftBody"></div>
 
         <div class="hr"></div>
@@ -383,13 +448,15 @@
       wrap.appendChild(right);
       container.appendChild(wrap);
 
-      left.querySelectorAll("[data-tab]").forEach(btn => {
+      // Tabs
+      left.querySelectorAll("[data-tab]").forEach((btn) => {
         btn.addEventListener("click", () => {
           Admin.tab = btn.getAttribute("data-tab");
           Admin.render(container);
         });
       });
 
+      // Export/import library
       left.querySelector('[data-action="export"]').addEventListener("click", () => {
         const content = JSON.stringify(Admin.lib, null, 2);
         downloadText("library.json", content, "application/json");
@@ -399,18 +466,18 @@
       left.querySelector('[data-action="import"]').addEventListener("change", async (ev) => {
         const file = ev.target.files?.[0];
         if (!file) return;
-        try{
+        try {
           const text = await file.text();
           const parsed = ensureLibraryShape(JSON.parse(text));
           Admin.lib = parsed;
           Admin.selectedLessonId = parsed.lessons?.[0]?.id || null;
           Admin.selectedQuestionId = null;
-          Admin.requestSave();
+          Admin.requestSave(true);
           Admin.render(container);
           toast("Imported JSON", "good");
-        }catch{
+        } catch {
           toast("Import failed (invalid JSON)", "bad");
-        }finally{
+        } finally {
           ev.target.value = "";
         }
       });
@@ -425,9 +492,272 @@
       const sideEditor = right.querySelector("#sideEditor");
 
       if (Admin.tab === "lessons") {
-        Admin._renderLessons(leftBody, mainEditor, sideEditor);
+        Admin._renderLessons(leftBody, mainEditor, sideEditor, container);
       } else if (Admin.tab === "users") {
-        Admin.    _renderUsers(leftBody, mainEditor, sideEditor) {
+        Admin._renderUsers(leftBody, mainEditor, sideEditor);
+      } else {
+        Admin._renderGradebook(leftBody, mainEditor, sideEditor);
+      }
+    },
+
+    _renderLessons(leftBody, mainEditor, sideEditor, container) {
+      // Left: lesson list + add
+      leftBody.innerHTML = `
+        <div class="row" style="margin-bottom:10px;">
+          <button class="btn btn-primary" type="button" data-action="addLesson">+ New Exam</button>
+        </div>
+        <div style="display:grid; gap:10px;" id="lessonList"></div>
+      `;
+
+      const lessonList = leftBody.querySelector("#lessonList");
+
+      function selectedLesson() {
+        return Admin.lib.lessons.find((l) => l.id === Admin.selectedLessonId) || null;
+      }
+
+      function selectedQuestion(lesson) {
+        if (!lesson) return null;
+        return (lesson.questions || []).find((q) => q.id === Admin.selectedQuestionId) || null;
+      }
+
+      function renderLessonList() {
+        lessonList.innerHTML = "";
+        if (!Admin.lib.lessons.length) {
+          lessonList.innerHTML = `<div class="small">No exams yet. Click “New Exam”.</div>`;
+          return;
+        }
+        Admin.lib.lessons.forEach((l) => {
+          const item = document.createElement("div");
+          item.className = "admin-item";
+          const active = l.id === Admin.selectedLessonId;
+          const policyLabel =
+            l.takePolicy?.mode === "one_time"
+              ? "one time"
+              : l.takePolicy?.mode === "limit"
+                ? `limit ${l.takePolicy.limit || 0}`
+                : "unlimited";
+
+          item.innerHTML = `
+            <div class="top">
+              <div>
+                <div class="name">${l.title}</div>
+                <div class="hint">${(l.kind || "quiz")} • ${policyLabel} • ${(l.questions || []).length} q</div>
+              </div>
+              <div class="row">
+                <button class="btn ${active ? "btn-primary" : ""}" type="button" data-action="open">Open</button>
+              </div>
+            </div>
+          `;
+          item.querySelector('[data-action="open"]').addEventListener("click", () => {
+            Admin.selectedLessonId = l.id;
+            Admin.selectedQuestionId = null;
+            Admin._renderLessons(leftBody, mainEditor, sideEditor, container);
+          });
+          lessonList.appendChild(item);
+        });
+      }
+
+      leftBody.querySelector('[data-action="addLesson"]').addEventListener("click", () => {
+        const n = Admin.lib.lessons.length + 1;
+        const lesson = {
+          id: uid("lesson"),
+          title: `Lesson ${n}`,
+          description: "",
+          kind: "quiz",
+          takePolicy: { mode: "unlimited", limit: 0 },
+          questions: []
+        };
+        Admin.lib.lessons.unshift(lesson);
+        Admin.selectedLessonId = lesson.id;
+        Admin.selectedQuestionId = null;
+        Admin.requestSave(true);
+        Admin._renderLessons(leftBody, mainEditor, sideEditor, container);
+      });
+
+      renderLessonList();
+
+      // Main editor (lesson)
+      const lesson = selectedLesson();
+      if (!lesson) {
+        mainEditor.innerHTML = `
+          <h2>Lessons</h2>
+          <p class="small">Select an exam on the left, or create a new one.</p>
+        `;
+        sideEditor.innerHTML = "";
+        return;
+      }
+
+      mainEditor.innerHTML = `
+        <h2>Exam Settings</h2>
+        <div class="form">
+          <div class="field">
+            <label>Title</label>
+            <input class="textinput" id="lTitle" />
+          </div>
+          <div class="field">
+            <label>Description</label>
+            <textarea class="textarea" id="lDesc" placeholder="Short instructions for students..."></textarea>
+          </div>
+          <div class="field">
+            <label>Type</label>
+            <select class="select" id="lKind">
+              <option value="homework">homework</option>
+              <option value="quiz">quiz</option>
+              <option value="exam">exam</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Attempt Policy</label>
+            <select class="select" id="lPolicy">
+              <option value="unlimited">Unlimited</option>
+              <option value="one_time">One Time Take Only</option>
+              <option value="limit">Limit attempts (X)</option>
+            </select>
+          </div>
+
+          <div class="field" id="limitWrap">
+            <label>Attempt Limit (X)</label>
+            <input class="textinput" id="lLimit" placeholder="2" />
+          </div>
+
+          <div class="row">
+            <button class="btn btn-primary" type="button" id="btnAddQ">+ Add Question</button>
+            <button class="btn btn-danger" type="button" id="btnDelLesson">Delete Exam</button>
+            <div class="spacer"></div>
+            <span class="tag">${(lesson.questions || []).length} questions</span>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+        <h3 style="margin:0 0 10px;">Questions</h3>
+        <div style="display:grid; gap:10px;" id="qList"></div>
+      `;
+
+      const lTitle = mainEditor.querySelector("#lTitle");
+      const lDesc = mainEditor.querySelector("#lDesc");
+      const lKind = mainEditor.querySelector("#lKind");
+      const lPolicy = mainEditor.querySelector("#lPolicy");
+      const lLimit = mainEditor.querySelector("#lLimit");
+      const limitWrap = mainEditor.querySelector("#limitWrap");
+      const qList = mainEditor.querySelector("#qList");
+
+      lTitle.value = lesson.title || "";
+      lDesc.value = lesson.description || "";
+      lKind.value = lesson.kind || "quiz";
+      lPolicy.value = lesson.takePolicy?.mode || "unlimited";
+      lLimit.value = String(lesson.takePolicy?.limit || "");
+      limitWrap.style.display = lPolicy.value === "limit" ? "block" : "none";
+
+      function syncLessonAndSave(showToast = false) {
+        lesson.title = lTitle.value || "Untitled";
+        lesson.description = lDesc.value || "";
+        lesson.kind = String(lKind.value || "quiz").toLowerCase();
+        lesson.takePolicy = lesson.takePolicy || { mode: "unlimited", limit: 0 };
+        lesson.takePolicy.mode = String(lPolicy.value || "unlimited");
+        lesson.takePolicy.limit = parseInt(lLimit.value || "0", 10) || 0;
+        limitWrap.style.display = lesson.takePolicy.mode === "limit" ? "block" : "none";
+        Admin.requestSave(showToast);
+        renderLessonList();
+      }
+
+      lTitle.addEventListener("input", () => syncLessonAndSave(false));
+      lDesc.addEventListener("input", () => syncLessonAndSave(false));
+      lKind.addEventListener("change", () => syncLessonAndSave(true));
+      lPolicy.addEventListener("change", () => syncLessonAndSave(true));
+      lLimit.addEventListener("input", () => syncLessonAndSave(false));
+
+      function renderQuestionsList() {
+        qList.innerHTML = "";
+        const qs = lesson.questions || [];
+        if (!qs.length) {
+          qList.innerHTML = `<div class="small">No questions yet. Click “Add Question”.</div>`;
+          return;
+        }
+        qs.forEach((q, idx) => {
+          const item = document.createElement("div");
+          item.className = "admin-item";
+          const active = q.id === Admin.selectedQuestionId;
+          const label = q.prompt ? q.prompt.slice(0, 80) : "(no prompt yet)";
+          item.innerHTML = `
+            <div class="top">
+              <div>
+                <div class="name">Q${idx + 1} • ${q.type}</div>
+                <div class="hint">${label}</div>
+              </div>
+              <div class="row">
+                <button class="btn ${active ? "btn-primary" : ""}" type="button" data-action="edit">Edit</button>
+              </div>
+            </div>
+          `;
+          item.querySelector('[data-action="edit"]').addEventListener("click", () => {
+            Admin.selectedQuestionId = q.id;
+            renderQuestionsList();
+            renderSideEditor();
+          });
+          qList.appendChild(item);
+        });
+      }
+
+      function renderSideEditor() {
+        sideEditor.innerHTML = "";
+        const q = selectedQuestion(lesson);
+        if (!q) {
+          sideEditor.innerHTML = `
+            <div class="card panel">
+              <h3>Select a question</h3>
+              <p class="small">Pick a question from the list to edit it.</p>
+            </div>
+          `;
+          return;
+        }
+        const editor = buildQuestionEditor(
+          q,
+          (showToast) => {
+            // keep options/answer consistent
+            if ((q.type === "single" || q.type === "multi") && !Array.isArray(q.options)) q.options = [];
+            Admin.requestSave(showToast);
+            renderQuestionsList();
+          },
+          () => {
+            Admin.deleteActiveQuestion();
+            Admin._renderLessons(leftBody, mainEditor, sideEditor, container);
+          }
+        );
+        sideEditor.appendChild(editor);
+      }
+
+      mainEditor.querySelector("#btnAddQ").addEventListener("click", () => {
+        const q = {
+          id: uid("q"),
+          type: "single",
+          prompt: "",
+          options: ["A", "B", "C", "D"],
+          answer: "A"
+        };
+        lesson.questions = lesson.questions || [];
+        lesson.questions.push(q);
+        Admin.selectedQuestionId = q.id;
+        Admin.requestSave(true);
+        renderQuestionsList();
+        renderSideEditor();
+        renderLessonList();
+      });
+
+      mainEditor.querySelector("#btnDelLesson").addEventListener("click", () => {
+        if (!confirm("Delete this exam?")) return;
+        Admin.lib.lessons = Admin.lib.lessons.filter((l) => l.id !== lesson.id);
+        Admin.selectedLessonId = Admin.lib.lessons[0]?.id || null;
+        Admin.selectedQuestionId = null;
+        Admin.requestSave(true);
+        Admin._renderLessons(leftBody, mainEditor, sideEditor, container);
+      });
+
+      renderQuestionsList();
+      renderSideEditor();
+    },
+
+    async _renderUsers(leftBody, mainEditor, sideEditor) {
       leftBody.innerHTML = `
         <p class="small">
           Users are shared across devices by publishing <span class="mono">data/users.json</span> in your repo.
@@ -446,11 +776,11 @@
 
         <div class="hr"></div>
         <h3 style="margin:0 0 8px;">Repo Users (read-only)</h3>
-        <div class="admin-list" id="repoUserList"></div>
+        <div style="display:grid; gap:10px;" id="repoUserList"></div>
 
         <div class="hr"></div>
         <h3 style="margin:0 0 8px;">Local Draft Users (not published yet)</h3>
-        <div class="admin-list" id="localUserList"></div>
+        <div style="display:grid; gap:10px;" id="localUserList"></div>
       `;
 
       const repoUserList = leftBody.querySelector("#repoUserList");
@@ -465,7 +795,7 @@
           return;
         }
         repoUserList.innerHTML = "";
-        repo.forEach(u => {
+        repo.forEach((u) => {
           const item = document.createElement("div");
           item.className = "admin-item";
           item.innerHTML = `
@@ -486,7 +816,7 @@
       function renderLocalUsers() {
         const local = Auth.getLocalDraftUsers();
         localUserList.innerHTML = "";
-        local.forEach(u => {
+        local.forEach((u) => {
           const item = document.createElement("div");
           item.className = "admin-item";
           item.innerHTML = `
@@ -506,6 +836,7 @@
             if (pw === null) return;
             const r = await Auth.resetLocalUserPassword(u.id, pw);
             if (!r.ok) toast(r.message || "Failed", "bad");
+            renderLocalUsers();
           });
           item.querySelector('[data-action="del"]').addEventListener("click", () => {
             if (!confirm("Delete this local draft user?")) return;
@@ -518,7 +849,6 @@
         if (!local.length) localUserList.innerHTML = `<div class="small">No local draft users.</div>`;
       }
 
-      // Buttons
       leftBody.querySelector('[data-action="refreshRepo"]').addEventListener("click", async () => {
         await Auth.loadRepoUsers(true);
         renderRepoUsers();
@@ -534,18 +864,20 @@
       leftBody.querySelector('[data-action="importUsers"]').addEventListener("change", async (ev) => {
         const file = ev.target.files?.[0];
         if (!file) return;
-        try{
+        try {
           const text = await file.text();
           const parsed = JSON.parse(text);
           const users = Array.isArray(parsed.users) ? parsed.users : [];
-          // Normalize minimal shape
-          const normalized = users.map(u => ({
-            id: u.id || u.username,
-            name: u.name || u.username,
-            username: String(u.username||"").trim().toLowerCase(),
-            passHash: String(u.passHash||"").trim().toLowerCase()
-          })).filter(u => u.username && u.passHash);
-          Auth.importLocalDraftUsers({ users: normalized });
+          const normalized = users
+            .map((u) => ({
+              id: u.id || u.username,
+              name: u.name || u.username,
+              username: String(u.username || "").trim().toLowerCase(),
+              passHash: String(u.passHash || "").trim().toLowerCase(),
+            }))
+            .filter((u) => u.username && u.passHash);
+
+          Auth.importLocalDraftUsers(normalized);
           toast("Imported users.json into local draft users", "good");
           renderLocalUsers();
         } catch {
@@ -601,22 +933,29 @@
         const name = mainEditor.querySelector("#uName").value;
         const username = mainEditor.querySelector("#uUser").value;
         const password = mainEditor.querySelector("#uPass").value;
-        if (!username.trim() || !password) { toast("Username and password required", "bad"); return; }
+        if (!username.trim() || !password) {
+          toast("Username and password required", "bad");
+          return;
+        }
         const r = await Auth.createLocalUser({ name, username, password });
-        if (!r.ok) { toast(r.message || "Failed", "bad"); return; }
+        if (!r.ok) {
+          toast(r.message || "Failed", "bad");
+          return;
+        }
+        mainEditor.querySelector("#uPass").value = "";
         renderLocalUsers();
       });
 
-      // Initial render
+      await Auth.loadRepoUsers(false);
       renderRepoUsers();
       renderLocalUsers();
     },
 
-        _renderGradebook(leftBody, mainEditor, sideEditor) {
+    async _renderGradebook(leftBody, mainEditor, sideEditor) {
       leftBody.innerHTML = `
         <p class="small">View saved scores per student (scores are local to this device).</p>
         <div class="hr"></div>
-        <div class="admin-list" id="gbUsers"><div class="small">Loading users…</div></div>
+        <div style="display:grid; gap:10px;" id="gbUsers"><div class="small">Loading users…</div></div>
       `;
 
       mainEditor.innerHTML = `
@@ -634,40 +973,48 @@
 
       const gbUsers = leftBody.querySelector("#gbUsers");
 
-      (async () => {
-        const repo = await Auth.getRepoUsers();
-        const local = Auth.getLocalDraftUsers();
-        const map = new Map();
-        [...repo, ...local].forEach(u => map.set(String(u.username).toLowerCase(), u));
-        const users = [...map.values()];
+      const repo = await Auth.getRepoUsers();
+      const local = Auth.getLocalDraftUsers();
+      const map = new Map();
+      [...repo, ...local].forEach((u) => map.set(String(u.username).toLowerCase(), u));
+      const users = [...map.values()];
 
-        gbUsers.innerHTML = "";
-        if (!users.length) {
-          gbUsers.innerHTML = `<div class="small">No users found yet.</div>`;
-          return;
-        }
+      gbUsers.innerHTML = "";
+      if (!users.length) {
+        gbUsers.innerHTML = `<div class="small">No users found yet.</div>`;
+        return;
+      }
 
-        users.forEach(u => {
-          const attempts = Auth.getAttemptsForUser(u.id || u.username);
-          const item = document.createElement("div");
-          item.className = "admin-item";
-          item.innerHTML = `
-            <div class="top">
-              <div>
-                <div class="name">${u.name}</div>
-                <div class="hint">${attempts.length} attempt(s)</div>
-              </div>
-              <div class="row">
-                <button class="btn" type="button" data-action="open">Open</button>
-              </div>
+      users.forEach((u) => {
+        const userId = u.id || u.username;
+        const attempts = Auth.getAttemptsForUser(userId);
+        const item = document.createElement("div");
+        item.className = "admin-item";
+        item.innerHTML = `
+          <div class="top">
+            <div>
+              <div class="name">${u.name}</div>
+              <div class="hint">${attempts.length} attempt(s)</div>
             </div>
-          `;
-          item.querySelector('[data-action="open"]').addEventListener("click", () => {
-            Admin.    _renderGradebookDetail(mainEditor, sideEditor, user) {
+            <div class="row">
+              <button class="btn" type="button" data-action="open">Open</button>
+            </div>
+          </div>
+        `;
+        item.querySelector('[data-action="open"]').addEventListener("click", () => {
+          Admin._renderGradebookDetail(mainEditor, sideEditor, u);
+        });
+        gbUsers.appendChild(item);
+      });
+    },
+
+    _renderGradebookDetail(mainEditor, sideEditor, user) {
       const userId = user.id || user.username;
       const attempts = Auth.getAttemptsForUser(userId).slice().reverse();
 
-      const rows = attempts.map(a => `
+      const rows = attempts
+        .map(
+          (a) => `
         <tr>
           <td>${a.takenAt ? new Date(a.takenAt).toLocaleString() : "—"}</td>
           <td>${a.kind || "quiz"}</td>
@@ -675,7 +1022,9 @@
           <td>${a.score}/${a.total}</td>
           <td>${a.percent}%</td>
         </tr>
-      `).join("");
+      `
+        )
+        .join("");
 
       mainEditor.innerHTML = `
         <h2>${user.name}</h2>
@@ -708,12 +1057,11 @@
     },
 
     deleteActiveQuestion() {
-      const lesson = Admin.lib.lessons.find(l => l.id === Admin.selectedLessonId);
+      const lesson = Admin.lib.lessons.find((l) => l.id === Admin.selectedLessonId);
       if (!lesson) return;
-      lesson.questions = lesson.questions.filter(q => q.id !== Admin.selectedQuestionId);
+      lesson.questions = (lesson.questions || []).filter((q) => q.id !== Admin.selectedQuestionId);
       Admin.selectedQuestionId = null;
-      Admin.requestSave();
-      window.dispatchEvent(new HashChangeEvent("hashchange"));
+      Admin.requestSave(true);
     }
   };
 
@@ -728,8 +1076,9 @@
     Admin
   };
 
-  Admin.init().catch(err => {
+  // Warm-load (non-blocking)
+  Admin.init().catch((err) => {
     console.error(err);
-    toast("Failed to load library", "bad");
+    toast("Failed to initialize Admin library", "bad");
   });
 })();
