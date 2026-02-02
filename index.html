@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light" />
+  <title>English Quest</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#/">
+      <span class="brand-mark" aria-hidden="true">🧭</span>
+      <span class="brand-name">English Quest</span>
+    </a>
+
+    <nav class="topnav" id="topnav">
+      <a class="navlink" href="#/">Dashboard</a>
+      <a class="navlink" href="#/admin">Admin</a>
+      <button id="btn-logout" class="btn btn-ghost" type="button" style="display:none;">Logout</button>
+    </nav>
+  </header>
+
+  <main class="app">
+    <div id="app" class="view" aria-live="polite"></div>
+  </main>
+
+  <!-- Modal Root -->
+  <div id="modal-root" class="modal-root" aria-hidden="true"></div>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span>English Quest • Static GitHub Pages app</span>
+    </div>
+  </footer>
+
+  <script src="assets/engine.js"></script>
+  <!-- Admin secret is injected at deploy time by GitHub Actions (see README). -->
+  <script src="assets/admin-secret.js"></script>
+  <script src="assets/auth.js"></script>
+  <script src="assets/admin.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

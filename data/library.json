@@ -1,0 +1,161 @@
+{
+  "appName": "English Quest",
+  "version": 2,
+  "lessons": [
+    {
+      "id": "lesson_01",
+      "title": "Lesson 01 — Present Simple",
+      "description": "Warm‑up: verbs, pronouns, and basic structure.",
+      "kind": "quiz",
+      "takePolicy": {
+        "mode": "unlimited",
+        "limit": 0
+      },
+      "questions": [
+        {
+          "id": "q1",
+          "type": "single",
+          "prompt": "She ____ coffee every morning.",
+          "options": [
+            "drink",
+            "drinks",
+            "drank",
+            "drinking",
+            "to drink"
+          ],
+          "answer": "drinks"
+        },
+        {
+          "id": "q2",
+          "type": "multi",
+          "prompt": "Select all pronouns:",
+          "options": [
+            "he",
+            "table",
+            "they",
+            "quickly",
+            "we"
+          ],
+          "answer": [
+            "he",
+            "they",
+            "we"
+          ]
+        },
+        {
+          "id": "q3",
+          "type": "exact",
+          "prompt": "Write this phrase exactly:",
+          "answer": "I am learning English."
+        },
+        {
+          "id": "q4",
+          "type": "contains",
+          "prompt": "Write a sentence that includes the word 'because'.",
+          "keywords": [
+            "because"
+          ],
+          "minWords": 5
+        }
+      ]
+    },
+    {
+      "id": "lesson_02",
+      "title": "Lesson 02 — Past Simple",
+      "description": "Regular/irregular verbs and time expressions.",
+      "kind": "homework",
+      "takePolicy": {
+        "mode": "limit",
+        "limit": 2
+      },
+      "questions": [
+        {
+          "id": "q1",
+          "type": "single",
+          "prompt": "Yesterday, I ____ to the store.",
+          "options": [
+            "go",
+            "went",
+            "gone",
+            "going",
+            "goes"
+          ],
+          "answer": "went"
+        },
+        {
+          "id": "q2",
+          "type": "single",
+          "prompt": "Which sentence is correct?",
+          "options": [
+            "He didn't went to work.",
+            "He didn't go to work.",
+            "He don't go to work.",
+            "He wasn't go to work.",
+            "He doesn't went to work."
+          ],
+          "answer": "He didn't go to work."
+        },
+        {
+          "id": "q3",
+          "type": "multi",
+          "prompt": "Select all time expressions that often go with the past:",
+          "options": [
+            "yesterday",
+            "tomorrow",
+            "last week",
+            "right now",
+            "two days ago"
+          ],
+          "answer": [
+            "yesterday",
+            "last week",
+            "two days ago"
+          ]
+        },
+        {
+          "id": "q4",
+          "type": "contains",
+          "prompt": "Write a sentence that contains 'last night'.",
+          "keywords": [
+            "last night"
+          ],
+          "minWords": 4
+        }
+      ]
+    },
+    {
+      "id": "lesson_03",
+      "title": "Lesson 03 — Mini Exam (Sample)",
+      "description": "Sample exam with one-time take policy.",
+      "kind": "exam",
+      "takePolicy": {
+        "mode": "one_time",
+        "limit": 0
+      },
+      "questions": [
+        {
+          "id": "q1",
+          "type": "single",
+          "prompt": "Choose the correct option: I ____ to music right now.",
+          "options": [
+            "listen",
+            "listens",
+            "am listening",
+            "listened",
+            "listening"
+          ],
+          "answer": "am listening"
+        },
+        {
+          "id": "q2",
+          "type": "contains",
+          "prompt": "Write a sentence that includes 'although'.",
+          "keywords": [
+            "although"
+          ],
+          "minWords": 6
+        }
+      ]
+    }
+  ]
+}
