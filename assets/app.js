@@ -2,7 +2,7 @@
    Router + Student dashboard + Login + Test + Results modal with "Review all".
 */
 (() => {
-  const AdminLib = window.EnglishQuestAdmin;
+  const AdminLib = window.EnglishQuestAdmin || null;
   const Engine = window.EnglishQuestEngine;
   const Auth = window.EnglishQuestAuth;
 
@@ -92,12 +92,59 @@
     return `${m}m ${r}s`;
   }
 
-  async function loadLibrary() {
-    const local = AdminLib.loadLocalLibrary();
-    if (local) return AdminLib.ensureLibraryShape(local);
-    const def = await AdminLib.loadDefaultLibrary();
-    return AdminLib.ensureLibraryShape(def);
+  const LIB_STORAGE_KEY = "englishQuestLibrary_v2";
+  function loadLocalLibraryFallback() {
+    try {
+      const raw = localStorage.getItem(LIB_STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
   }
+  function ensureLibraryShapeFallback(lib) {
+    const out = lib && typeof lib === "object" ? lib : {};
+    if (!Array.isArray(out.lessons)) out.lessons = [];
+    if (!out.appName) out.appName = "English Quest";
+    if (!out.version) out.version = 1;
+    out.lessons = out.lessons.map((l, i) => {
+      const x = l && typeof l === "object" ? l : {};
+      if (!x.id) x.id = `lesson_${String(i+1).padStart(2,"0")}`;
+      if (!x.title) x.title = `Lesson ${i+1}`;
+      if (!x.description) x.description = "";
+      if (!x.kind) x.kind = "quiz";
+      if (!x.takePolicy || typeof x.takePolicy !== "object") x.takePolicy = { mode:"unlimited", limit:0 };
+      if (!Array.isArray(x.questions)) x.questions = [];
+      return x;
+    });
+    return out;
+  }
+  async function loadDefaultLibraryFallback() {
+    const res = await fetch("data/library.json", { cache: "no-store" });
+    if (!res.ok) throw new Error(`Failed to load data/library.json (${res.status})`);
+    return await res.json();
+  }
+
+  async function loadLibrary() {
+    // Prefer AdminLib helpers if available (for consistency),
+    // but DO NOT require them (so login never goes blank).
+    try {
+      if (AdminLib && typeof AdminLib.loadLocalLibrary === "function") {
+        const local = AdminLib.loadLocalLibrary();
+        if (local) return AdminLib.ensureLibraryShape(local);
+        const def = await AdminLib.loadDefaultLibrary();
+        return AdminLib.ensureLibraryShape(def);
+      }
+    } catch (e) {
+      console.warn("AdminLib library helpers failed, using fallback.", e);
+    }
+
+    const local = loadLocalLibraryFallback();
+    if (local) return ensureLibraryShapeFallback(local);
+    const def = await loadDefaultLibraryFallback();
+    return ensureLibraryShapeFallback(def);
+  }
+
 
   function getLessonById(id) {
     return State.lib.lessons.find(l => l.id === id);
@@ -116,8 +163,24 @@
 
     if (root === "admin") {
       Auth.requireAdmin().then(ok => {
-        if (!ok) location.hash = "#/";
-        else AdminLib.Admin.render(appEl);
+        if (!ok) { location.hash = "#/"; return; }
+        const AdminNow = window.EnglishQuestAdmin;
+        if (!AdminNow || !AdminNow.Admin) {
+          appEl.innerHTML = `
+            <div class="card fade-in">
+              <h2 style="margin:0 0 8px;">Admin failed to load</h2>
+              <p class="muted" style="margin:0 0 12px;">
+                Your <span class="mono">assets/admin.js</span> did not load correctly (syntax error or missing file).
+                Re-upload the latest project files and hard refresh.
+              </p>
+              <div class="row">
+                <a class="btn btn-primary" href="#/">Back to Dashboard</a>
+              </div>
+            </div>
+          `;
+          return;
+        }
+        AdminNow.Admin.render(appEl);
       });
       return;
     }
@@ -637,19 +700,12 @@
   }
 
   async function boot() {
-    // Library fetch can fail if:
-    // - opened via file:// (browser blocks fetching local JSON)
-    // - data/library.json missing on deploy
-    // Never let this render a blank page.
     try {
       State.lib = await loadLibrary();
     } catch (e) {
-      console.error("Library load failed:", e);
-      State.lib = AdminLib.ensureLibraryShape({ appName:"English Quest", version:2, lessons:[] });
-      Auth.toast(
-        "Couldn't load data/library.json. If you're running locally, start a local server (python -m http.server) or deploy to GitHub Pages.",
-        "bad"
-      );
+      console.error("Library load failed", e);
+      State.lib = { appName: "English Quest", version: 1, lessons: [] };
+      Auth.toast?.("Library failed to load. Check that data/library.json exists in your repo.", "bad");
     }
     updateTopbar();
 

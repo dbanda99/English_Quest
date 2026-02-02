@@ -16,21 +16,9 @@
   function toast(msg, kind="info"){ Auth.toast(msg, kind); }
 
   async function loadDefaultLibrary() {
-    // NOTE: If the app is opened via file://, browsers block fetching local JSON files.
-    // Also, a missing /data folder on deploy will return 404.
-    // We return a safe empty library instead of throwing, so the UI never renders blank.
-    try {
-      const res = await fetch(DEFAULT_URL, { cache:"no-store" });
-      if (!res.ok) throw new Error("Failed to load library.json");
-      return await res.json();
-    } catch (e) {
-      console.error("Library load failed:", e);
-      toast(
-        "Couldn't load data/library.json. If you're running locally, start a local server (python -m http.server) or deploy to GitHub Pages.",
-        "bad"
-      );
-      return { appName:"English Quest", version:2, lessons:[] };
-    }
+    const res = await fetch(DEFAULT_URL, { cache:"no-store" });
+    if (!res.ok) throw new Error("Failed to load library.json");
+    return await res.json();
   }
 
   function loadLocalLibrary() {
