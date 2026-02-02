@@ -1,4 +1,12 @@
 {
   "version": 1,
-  "users": []
+  "generatedAt": "2026-02-02T01:32:58.166Z",
+  "users": [
+    {
+      "id": "u_d41fbe17_19c1bfaeef2",
+      "name": "Fernanda Ochoa",
+      "username": "f.banda",
+      "passHash": "0518106a24b0cec7dddb1425a6eb06fe3007371daecddd27775f3e16dc38aa74"
+    }
+  ]
 }

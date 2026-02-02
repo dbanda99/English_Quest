@@ -3,157 +3,132 @@
   "version": 2,
   "lessons": [
     {
-      "id": "lesson_01",
-      "title": "Lesson 01 — Present Simple",
-      "description": "Warm‑up: verbs, pronouns, and basic structure.",
+      "id": "lesson_47cc33c6_19c1bfca28a",
+      "title": "Lesson 1: Introduction",
+      "description": "Welcome to the class, dear students.",
       "kind": "quiz",
-      "takePolicy": {
-        "mode": "unlimited",
-        "limit": 0
-      },
-      "questions": [
-        {
-          "id": "q1",
-          "type": "single",
-          "prompt": "She ____ coffee every morning.",
-          "options": [
-            "drink",
-            "drinks",
-            "drank",
-            "drinking",
-            "to drink"
-          ],
-          "answer": "drinks"
-        },
-        {
-          "id": "q2",
-          "type": "multi",
-          "prompt": "Select all pronouns:",
-          "options": [
-            "he",
-            "table",
-            "they",
-            "quickly",
-            "we"
-          ],
-          "answer": [
-            "he",
-            "they",
-            "we"
-          ]
-        },
-        {
-          "id": "q3",
-          "type": "exact",
-          "prompt": "Write this phrase exactly:",
-          "answer": "I am learning English."
-        },
-        {
-          "id": "q4",
-          "type": "contains",
-          "prompt": "Write a sentence that includes the word 'because'.",
-          "keywords": [
-            "because"
-          ],
-          "minWords": 5
-        }
-      ]
-    },
-    {
-      "id": "lesson_02",
-      "title": "Lesson 02 — Past Simple",
-      "description": "Regular/irregular verbs and time expressions.",
-      "kind": "homework",
-      "takePolicy": {
-        "mode": "limit",
-        "limit": 2
-      },
-      "questions": [
-        {
-          "id": "q1",
-          "type": "single",
-          "prompt": "Yesterday, I ____ to the store.",
-          "options": [
-            "go",
-            "went",
-            "gone",
-            "going",
-            "goes"
-          ],
-          "answer": "went"
-        },
-        {
-          "id": "q2",
-          "type": "single",
-          "prompt": "Which sentence is correct?",
-          "options": [
-            "He didn't went to work.",
-            "He didn't go to work.",
-            "He don't go to work.",
-            "He wasn't go to work.",
-            "He doesn't went to work."
-          ],
-          "answer": "He didn't go to work."
-        },
-        {
-          "id": "q3",
-          "type": "multi",
-          "prompt": "Select all time expressions that often go with the past:",
-          "options": [
-            "yesterday",
-            "tomorrow",
-            "last week",
-            "right now",
-            "two days ago"
-          ],
-          "answer": [
-            "yesterday",
-            "last week",
-            "two days ago"
-          ]
-        },
-        {
-          "id": "q4",
-          "type": "contains",
-          "prompt": "Write a sentence that contains 'last night'.",
-          "keywords": [
-            "last night"
-          ],
-          "minWords": 4
-        }
-      ]
-    },
-    {
-      "id": "lesson_03",
-      "title": "Lesson 03 — Mini Exam (Sample)",
-      "description": "Sample exam with one-time take policy.",
-      "kind": "exam",
       "takePolicy": {
         "mode": "one_time",
         "limit": 0
       },
       "questions": [
         {
-          "id": "q1",
+          "id": "q_0c1982f1_19c1bfd11f1",
           "type": "single",
-          "prompt": "Choose the correct option: I ____ to music right now.",
+          "prompt": "Selecciona la frase correcta para decir tu nombre en inglés:",
           "options": [
-            "listen",
-            "listens",
-            "am listening",
-            "listened",
-            "listening"
+            "A) What your name?",
+            "B) My name is Ana.",
+            "C) Name is my Ana.",
+            "D) I name Ana."
           ],
-          "answer": "am listening"
+          "answer": "B) My name is Ana."
         },
         {
-          "id": "q2",
-          "type": "contains",
-          "prompt": "Write a sentence that includes 'although'.",
-          "keywords": [
-            "although"
+          "id": "q_6379f0f8_19c1c0293e7",
+          "type": "multi",
+          "prompt": "Selecciona TODAS las frases que son saludos en inglés:",
+          "options": [
+            "Hello",
+            "Thank you",
+            "Nice to meet you",
+            "Name",
+            "Please"
           ],
-          "minWords": 6
+          "answer": [
+            "Hello",
+            "Nice to meet you"
+          ]
+        },
+        {
+          "id": "q_3261ae4c_19c1c03316b",
+          "type": "single",
+          "prompt": "¿Cuál es la respuesta correcta a la pregunta “What is your name?”",
+          "options": [
+            "A) Hello",
+            "B) Yes",
+            "C) My name is Carlos",
+            "D) Thank you"
+          ],
+          "answer": "C) My name is Carlos"
+        },
+        {
+          "id": "q_8663ed72_19c1c038345",
+          "type": "multi",
+          "prompt": "Selecciona TODAS las palabras que se usan para ser educado (polite):",
+          "options": [
+            "Please",
+            "Thank you",
+            "Yes",
+            "No",
+            "Nice"
+          ],
+          "answer": [
+            "Please",
+            "Thank you"
+          ]
+        },
+        {
+          "id": "q_19a3db3b_19c1c03d137",
+          "type": "exact",
+          "prompt": "Escribe EXACTAMENTE la frase en inglés para presentarte:\n\nMi nombre es María.",
+          "answer": "My name is María."
+        },
+        {
+          "id": "q_6ff0ad9f_19c1c046df1",
+          "type": "single",
+          "prompt": "¿Qué palabra significa “sí” en inglés?",
+          "options": [
+            "A) No",
+            "B) Please",
+            "C) Yes",
+            "D) Name"
+          ],
+          "answer": "C) Yes"
+        },
+        {
+          "id": "q_4760dea2_19c1c04a645",
+          "type": "multi",
+          "prompt": "Selecciona TODAS las frases que contienen la palabra “name”:",
+          "options": [
+            "My name is Juan",
+            "What is your name?",
+            "Nice to meet you",
+            "Thank you",
+            "Her name is Ana"
+          ],
+          "answer": [
+            "My name is Juan",
+            "What is your name?",
+            "Her name is Ana"
+          ]
+        },
+        {
+          "id": "q_0e442ba0_19c1c052b70",
+          "type": "contains",
+          "prompt": "Escribe UNA frase en inglés que contenga la palabra “please”.",
+          "keywords": [
+            "please"
+          ],
+          "minWords": 5
+        },
+        {
+          "id": "q_27af9464_19c1c059f83",
+          "type": "single",
+          "prompt": "¿Cuál frase se usa cuando conoces a alguien por primera vez?",
+          "options": [
+            "A) Thank you",
+            "B) Yes",
+            "C) Nice to meet you",
+            "D) My name is"
+          ],
+          "answer": "C) Nice to meet you"
+        },
+        {
+          "id": "q_93f8b1e4_19c1c05cfe9",
+          "type": "exact",
+          "prompt": "Escribe EXACTAMENTE cómo dices “Gracias” en inglés:",
+          "answer": "Thank you"
         }
       ]
     }
